@@ -1,0 +1,202 @@
+Implementing RWFM in PostgreSQL(Installation):
+
+1. Install PostgreSQL9.4.4 from source code using the stepsmentioned in the report.
+I am also providing the IITB link to install:
+http://www.cse.iitb.ac.in/infolab/Data/Courses/CS631/PostgreSQL-Resources/pgsql_demo.txt
+
+----------------------------
+First time build and setup
+----------------------------
+
+1) Set the following variables appropriately:
+(NOTE: source dir is the main directory where you your postgresql source resides.
+installdir is the directory where you want the database to be created.
+One option is to make INSTALLDIR to be SRCDIR/install.)
+
+
+export POSTGRES_INSTALLDIR=<path to install dir>
+export POSTGRES_SRCDIR=<path to postgre source dir>
+
+cd ${POSTGRES_SRCDIR}
+
+2) You should configure for debugging as follows:
+
+./configure --prefix=${POSTGRES_INSTALLDIR} --enable-debug
+export enable_debug=yes
+
+(If you are setting up posgtresql for production use, do the configure as below:
+Normal build (Non-debug build):
+./configure --prefix=${POSTGRES_INSTALLDIR}
+)
+
+3) make | tee make.out
+
+4) make install | tee make_install.out
+
+5) Set the following env. variables appropriately (as shown below):
+export LD_LIBRARY_PATH=${POSTGRES_INSTALLDIR}/lib:${LD_LIBRARY_PATH}
+export PATH=${POSTGRES_INSTALLDIR}/bin:${PATH}
+
+export PGDATA=${POSTGRES_INSTALLDIR}/data
+
+6) create a new PostgreSQL database cluster:
+
+initdb -D ${PGDATA}
+
+Note: A database cluster is a collection of databases that are managed by a single server instance.
+
+7) Run the postgres server:
+
+pg_ctl -D $PGDATA -l logfile start
+
+(you can also use:   postmaster -D  $PGDATA > logfile 2>&1 &)
+
+NOTE 1: If you are running on a shared machine, you may need to change the port on which 
+postgresql listens from the defaulty of 5432 to some other port.  Otherwise there will
+be a port clash.  To avoid this, Edit ${POSTGRES_INSTALLDIR}/data/postgresql.conf
+uncomment port=5432, and change it to (say) 9432. 
+You will to connect to the port number
+you choose.
+
+NOTE 2: If you intend to connect from a machine other than the one you are running on,
+you will have to edit postgresql.conf and pg_hba.conf.  Instructions will
+be added here later.
+
+
+8) Create database: (we assume here that you used post number as 9432 above)
+createdb -p 9432 test
+
+9) Run the psql (client program):
+psql -p 9432 test
+
+This allows you to run sql commands.  
+For now, just exit using \q
+
+10) Stop the server:
+pg_ctl stop
+
+11) To run postgresql in single user mode (very useful for debugging when you modify the sources),
+run it as 
+    postgres --single -D ${PGDATA} test
+(where test is the database you created).  
+
+To run run postgresql in single mode from eclipse, 
+add 
+  -- single -D <PGDATA> test
+as command line arguments in the run time environment 
+(change <PGDATA> to the full path) allowing you to use the eclipse
+debugger.
+
+  You can now run sql commands.  Eg.
+ 
+     create table foo(int i);
+     insert into foo values (1);
+     select * from foo;
+
+----------------------------
+When you modify the sources:
+----------------------------
+
+Most of your testing will be in single mode, from eclipse, so sources should
+get rebuilt and the process restarted automatically.  If you are running
+from command line in server mode, do the following.
+
+1) Exit from psql client
+
+2) Stop the postgres server:
+pg_ctl stop
+
+3) Rebuild the objects:
+make | tee make.out
+
+4) Re-install:
+make install | tee make_install.out
+
+5) Start the postgres server
+postmaster -D  $PGDATA > logfile 2>&1 &
+	OR
+pg_ctl -D $PGDATA -l logfile start
+	
+6) psql -p 9432 test
+
+---------------------------------------
+Connecting to a remote postgres server:
+---------------------------------------
+*. psql client should be invoked in the following manner, if the postgres server is running on a different machine. 
+psql test -h <hostname on which postgres server runs> -p <portnumber>
+
+-------------------------------------
+Executing a query from command line:
+-------------------------------------
+psql -p 9432 test --command "<query>"
+	e.g: psql test --command "select * from ch_user;"
+
+
+-------------------------------------
+Running a stand alone postgres
+-------------------------------------
+postgres  -D  $PGDATA test
+
+
+-------------------------------------
+Attaching a stand alone postgres
+-------------------------------------
+(Skip this section if you are using eclipse)
+Note: Source level debugging needs building the postgres with debug options
+enabled. See the step 2 (Debug build) of the 'First time build and setup'
+
+1) Invoke ddd 
+
+2) Enter the following 'GDB console' window:
+
+	 i) file <full path of 'postgres'>
+			e.g: file /home/santosh/postgresql/bin/postgres
+	ii) run  <command line arguments>
+			e.g: run -D $PGDATA test
+
+
+******************************************************************************************************************************************************************
+Create table:
+
+main_table (user_id text, o_attr text, r_attr text, w_attr text) ;
+
+(It contains the reader-writer set of all users)
+
+
+
+
+*********************************************************************************************************************************************************************
+
+Modifying Source code of Postgres to implement RWFM:
+
+1. Find the file gram.y in Postgres_RWFM.zip 
+
+2. Go to the location in your system:
+Postgres.9.4/src/backend/parser/
+
+3. Replace the file gram.y with the file present in the system.
+
+4. Find the file postgres.c in Postgre_RWFM.zip
+
+5. Go to the location in your system:
+Postgres.9.4/src/backend/tcop/
+
+6. Replace the file postgres.c with the file present in the system.
+
+7.. Find the file execMain.c in Postgres_RWFm.zip
+
+8. Go to the location in your system:
+Postgres.9.4/src/backend/executor/
+
+9. Replace the file execMain.c with the file present in the system.
+
+10. Re-build the source code using the commands:
+	make | tee make.out
+
+	make install | tee make_install.out
+
+11. Run  Postgres in single user mode.
+
+12. Create tables and execute the DML queries of Postgres.
+
+***********************************************************************************************************************************************************************
